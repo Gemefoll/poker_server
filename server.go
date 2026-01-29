@@ -2,9 +2,9 @@ package main
 
 import (
 	"context"
+	"crypto/rand"
 	"fmt"
 	"io"
-	"math/rand/v2"
 	"net/http"
 	"os"
 	"strconv"
@@ -29,10 +29,7 @@ func setupServer() {
 		fmt.Println(err)
 		os.Exit(1)
 	}
-	// TODO
-	for range 10 {
-		srv.secret = append(srv.secret, byte(rand.UintN(256)))
-	}
+	srv.secret = []byte(rand.Text())
 	const dsn = "postgres://postgres:@localhost:5432/pockerdb"
 	srv.dbpool, err = pgxpool.New(context.Background(), dsn)
 	if err != nil {
