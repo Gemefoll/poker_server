@@ -16,18 +16,15 @@ import (
 func setupServer() {
 	fl, err := os.Open("config.toml")
 	if err != nil {
-		fmt.Println(err)
-		os.Exit(1)
+		panic(err)
 	}
 	res, err := io.ReadAll(fl)
 	if err != nil {
-		fmt.Println(err)
-		os.Exit(1)
+		panic(err)
 	}
 	err = toml.Unmarshal(res, &srv.conf)
 	if err != nil {
-		fmt.Println(err)
-		os.Exit(1)
+		panic(err)
 	}
 	srv.secret = []byte(rand.Text())
 	const dsn = "postgres://postgres:@localhost:5432/pockerdb"
@@ -42,7 +39,7 @@ func setupServer() {
 	games = make(map[int]*Game)
 }
 
-func StartServer() {
+func StartServer() error {
 	http.HandleFunc("/", homeHendle)
 	http.HandleFunc("/api/ping", Ping)
 	http.HandleFunc("/api/cards", Cards)
@@ -55,7 +52,6 @@ func StartServer() {
 	http.HandleFunc("/api/signin", SignIn)
 	http.HandleFunc("/api/game/create", CreateGame)
 	http.HandleFunc("/api/game/join", JoinGame)
-	fs := http.FileServer(http.Dir("./card_img"))
-	http.Handle("/card_img/", http.StripPrefix("/card_img/", fs))
-	http.ListenAndServe(":"+strconv.Itoa(srv.conf.Port), nil)
+	http.Handle("/card_img/", http.StripPrefix("/card_img/", http.FileServer(http.Dir("./card_img"))))
+	return http.ListenAndServe(":"+strconv.Itoa(srv.conf.Port), nil)
 }

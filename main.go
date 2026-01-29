@@ -1,9 +1,7 @@
 package main
 
 import (
-	"fmt"
 	"math/rand/v2"
-	"os"
 	"slices"
 	"sort"
 	"sync"
@@ -259,37 +257,9 @@ func OpenCard() {
 
 func main() {
 	setupServer()
-	go StartServer()
 	ClearGame()
-	// createGame()
-	for {
-		s := ""
-		fmt.Scanln(&s)
-		if isGameStart {
-			switch s {
-			case "exit":
-				os.Exit(0)
-			case "next":
-				OpenCard()
-			case "next3":
-				OpenCard()
-				OpenCard()
-				OpenCard()
-			case "end":
-				// EndGame()
-				// createGame()
-			default:
-				fmt.Println("Invalid command")
-			}
-		} else {
-			switch s {
-			case "exit":
-				os.Exit(0)
-			case "clear":
-				ClearGame()
-			default:
-				fmt.Println("Invalid command")
-			}
-		}
+	err := StartServer()
+	if err != nil {
+		panic(err)
 	}
 }
