@@ -1,0 +1,64 @@
+package main
+
+import (
+	"context"
+	"fmt"
+	"io"
+	"math/rand/v2"
+	"net/http"
+	"os"
+	"strconv"
+
+	"github.com/BurntSushi/toml"
+	"github.com/jackc/pgx/v5/pgxpool"
+)
+
+func setupServer() {
+	fl, err := os.Open("config.toml")
+	if err != nil {
+		fmt.Println(err)
+		os.Exit(1)
+	}
+	res, err := io.ReadAll(fl)
+	if err != nil {
+		fmt.Println(err)
+		os.Exit(1)
+	}
+	err = toml.Unmarshal(res, &srv.conf)
+	if err != nil {
+		fmt.Println(err)
+		os.Exit(1)
+	}
+	// TODO
+	for range 10 {
+		srv.secret = append(srv.secret, byte(rand.UintN(256)))
+	}
+	const dsn = "postgres://postgres:@localhost:5432/pockerdb"
+	srv.dbpool, err = pgxpool.New(context.Background(), dsn)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	if err := srv.dbpool.Ping(context.Background()); err != nil {
+		panic(err)
+	}
+	games = make(map[int]*Game)
+}
+
+func StartServer() {
+	http.HandleFunc("/", homeHendle)
+	http.HandleFunc("/api/ping", Ping)
+	http.HandleFunc("/api/cards", Cards)
+	http.HandleFunc("/api/cnt", LenTable)
+	http.HandleFunc("/api/table", GetTable)
+	http.HandleFunc("/api/join", Join)
+	http.HandleFunc("/api/fold", Fold)
+	http.HandleFunc("/game", playersHandle)
+	http.HandleFunc("/api/signup", SignUp)
+	http.HandleFunc("/api/signin", SignIn)
+	http.HandleFunc("/api/game/create", CreateGame)
+	http.HandleFunc("/api/game/join", JoinGame)
+	fs := http.FileServer(http.Dir("./card_img"))
+	http.Handle("/card_img/", http.StripPrefix("/card_img/", fs))
+	http.ListenAndServe(":"+strconv.Itoa(srv.conf.Port), nil)
+}
