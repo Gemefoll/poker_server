@@ -23,8 +23,6 @@ var table [][]int
 var folds map[Token]bool
 var isGameStart bool
 var curBal map[Token]int
-var pots [][]Token
-var countMoney []int
 var games map[int]*Game
 var WhereIsUser map[string]int
 
@@ -205,22 +203,6 @@ func OpenCard() {
 	iter++
 }
 
-func StartGame() {
-	isGameStart = true
-	lk.Lock()
-	pots = append(pots, tokens)
-	countMoney = append(countMoney, 0)
-	for _, val := range tokens {
-		curBal[val] = srv.conf.Start_balance
-	}
-	for _, i := range tokens {
-		hand := [][]int{deck[iter], deck[iter+1]}
-		iter += 2
-		mapa[i] = hand
-	}
-	lk.Unlock()
-}
-
 // func EndGame() {
 // 	for len(table) < 5 {
 // 		OpenCard()
@@ -303,8 +285,6 @@ func main() {
 			switch s {
 			case "exit":
 				os.Exit(0)
-			case "start":
-				StartGame()
 			case "clear":
 				ClearGame()
 			default:
