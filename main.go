@@ -1,0 +1,363 @@
+package main
+
+import (
+	"context"
+	"fmt"
+	"io"
+	"math/rand/v2"
+	"net/http"
+	"os"
+	"slices"
+	"sort"
+	"strconv"
+	"sync"
+
+	"github.com/BurntSushi/toml"
+	"github.com/jackc/pgx/v5/pgxpool"
+)
+
+type Token = string
+
+var lk sync.Mutex
+var deck [][]int
+var iter int
+var mapa map[Token][][]int
+var name map[Token]string
+var tokens []Token
+var table [][]int
+var folds map[Token]bool
+var isGameStart bool
+var curBal map[Token]int
+var pots [][]Token
+var countMoney []int
+var games map[int]*Game
+var WhereIsUser map[string]int
+
+type Config struct {
+	Port          int
+	Start_balance int
+}
+
+type Server struct {
+	secret   []byte
+	dbpool   *pgxpool.Pool
+	conf     *Config
+	gamesPtr int
+}
+
+type User struct {
+	Name    string
+	Role    string
+	Pass    string
+	Salt    string
+	Balance int
+}
+
+type Card struct {
+	Suit int
+	Rank int
+}
+
+type Game struct {
+	UsersId []string
+	Owner   string
+	Table   []Card
+	Pots    [][]string
+	Bet     []int
+	MaxBet  []int
+	Deck    []Card
+	Hand    map[string][]Card
+	Iter    int
+	Round   int
+	Turn    int
+	IsStart bool
+}
+
+var srv Server
+
+func NewGame(Owner string) *Game {
+	return &Game{
+		UsersId: make([]string, 0),
+		Table:   make([]Card, 0),
+		Pots:    make([][]string, 0),
+		Bet:     make([]int, 0),
+		MaxBet:  make([]int, 0),
+		Hand:    make(map[string][]Card),
+		Owner:   Owner,
+		Deck:    NewDeck(),
+	}
+}
+
+func combination(a []Card) []int {
+	b := make([]int, 0)
+	for _, i := range a {
+		b = append(b, i.Rank)
+	}
+	sort.Slice(b, func(i, j int) bool {
+		return b[i] > b[j]
+	})
+	is_street, is_flush := true, true
+	for i := range a {
+		if i != 0 && a[i].Suit != a[i-1].Suit {
+			is_flush = false
+		}
+	}
+	for i := range b {
+		if i != 0 && b[i-1]-1 != b[i] {
+			is_street = false
+		}
+	}
+	if b[1] == 3 && b[2] == 2 && b[3] == 1 && b[4] == 0 && b[0] == 12 {
+		b[0] = 3
+		is_street = true
+	}
+	if is_street && is_flush {
+		return []int{8, b[0]}
+	}
+	if b[1] == b[2] && b[2] == b[3] && (b[0] == b[1] || b[3] == b[4]) {
+		if b[0] == b[1] {
+			return []int{7, b[0], b[4]}
+		}
+		return []int{7, b[4], b[0]}
+	}
+	if b[0] == b[1] && b[3] == b[4] && (b[2] == b[3] || b[1] == b[2]) {
+		if b[2] == b[3] {
+			return []int{6, b[2], b[0]}
+		}
+		return []int{6, b[2], b[3]}
+	}
+	if is_flush {
+		return []int{5, b[0], b[1], b[2], b[3], b[4]}
+	}
+	if is_street {
+		return []int{4, b[0]}
+	}
+	if b[0] == b[1] && b[1] == b[2] {
+		return []int{3, b[0], b[3], b[4]}
+	}
+	if b[3] == b[1] && b[1] == b[2] {
+		return []int{3, b[1], b[0], b[4]}
+	}
+	if b[3] == b[4] && b[3] == b[2] {
+		return []int{3, b[2], b[0], b[1]}
+	}
+	if b[0] == b[1] && b[2] == b[3] {
+		return []int{2, b[0], b[2], b[4]}
+	}
+	if b[0] == b[1] && b[3] == b[4] {
+		return []int{2, b[0], b[3], b[2]}
+	}
+	if b[1] == b[2] && b[3] == b[4] {
+		return []int{2, b[1], b[3], b[0]}
+	}
+	if b[0] == b[1] {
+		return []int{1, b[0], b[2], b[3], b[4]}
+	}
+	if b[1] == b[2] {
+		return []int{1, b[1], b[0], b[3], b[4]}
+	}
+	if b[2] == b[3] {
+		return []int{1, b[2], b[0], b[1], b[4]}
+	}
+	if b[3] == b[4] {
+		return []int{1, b[3], b[0], b[1], b[2]}
+	}
+	return []int{0, b[0], b[1], b[2], b[3], b[4]}
+}
+
+func cmp(a, b []Card) int {
+	if len(a) == 0 {
+		return -1
+	}
+	return slices.Compare(combination(a), combination(b))
+}
+
+func NewDeck() []Card {
+	deck := make([]Card, 52)
+	for i := range 4 {
+		for j := range 13 {
+			deck[i*13+j] = Card{i, j}
+		}
+	}
+	rand.Shuffle(len(deck), func(a, b int) {
+		deck[a], deck[b] = deck[b], deck[a]
+	})
+	iter = 0
+	return deck
+}
+
+func Convert(a [][]int) []string {
+	mast := []string{"a", "b", "c", "d"}
+	nom := []string{"2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K", "A"}
+	ans := make([]string, 0)
+	for _, i := range a {
+		ans = append(ans, nom[i[1]]+mast[i[0]])
+	}
+	return ans
+}
+
+func ClearGame() {
+	lk.Lock()
+	name = make(map[string]string)
+	tokens = make([]Token, 0)
+	lk.Unlock()
+}
+
+func OpenCard() {
+	lk.Lock()
+	table = append(table, deck[iter])
+	lk.Unlock()
+	iter++
+}
+
+func StartGame() {
+	isGameStart = true
+	lk.Lock()
+	pots = append(pots, tokens)
+	countMoney = append(countMoney, 0)
+	for _, val := range tokens {
+		curBal[val] = srv.conf.Start_balance
+	}
+	for _, i := range tokens {
+		hand := [][]int{deck[iter], deck[iter+1]}
+		iter += 2
+		mapa[i] = hand
+	}
+	lk.Unlock()
+}
+
+// func EndGame() {
+// 	for len(table) < 5 {
+// 		OpenCard()
+// 	}
+// 	lk.RLock()
+// 	bests := make([][][]int, 0)
+// 	for _, token := range tokens {
+// 		cur := table
+// 		cur = append(cur, mapa[token]...)
+// 		best := make([][]int, 0)
+// 		for i := range 7 {
+// 			for j := range 7 {
+// 				if i >= j {
+// 					continue
+// 				}
+// 				vec := make([][]int, 0)
+// 				for k := range 7 {
+// 					if k != i && k != j {
+// 						vec = append(vec, cur[k])
+// 					}
+// 				}
+// 				if cmp(best, vec) == -1 {
+// 					best = vec
+// 				}
+// 			}
+// 		}
+// 		bests = append(bests, best)
+// 	}
+// 	lk.RUnlock()
+// 	winners := make([]int, 0)
+// 	for i, x := range bests {
+// 		if folds[tokens[i]] {
+// 			continue
+// 		}
+// 		if len(winners) == 0 {
+// 			winners = append(winners, i)
+// 			continue
+// 		}
+// 		c := cmp(x, bests[winners[0]])
+// 		switch c {
+// 		case 0:
+// 			winners = append(winners, i)
+// 		case 1:
+// 			winners = []int{i}
+// 		}
+// 	}
+// 	lk.RLock()
+// 	fmt.Println("Winners:")
+// 	for _, i := range winners {
+// 		fmt.Println(name[tokens[i]])
+// 	}
+// 	lk.RUnlock()
+// }
+
+func main() {
+	fl, err := os.Open("config.toml")
+	if err != nil {
+		fmt.Println(err)
+		os.Exit(1)
+	}
+	res, err := io.ReadAll(fl)
+	if err != nil {
+		fmt.Println(err)
+		os.Exit(1)
+	}
+	err = toml.Unmarshal(res, &srv.conf)
+	if err != nil {
+		fmt.Println(err)
+		os.Exit(1)
+	}
+	// TODO
+	for range 10 {
+		srv.secret = append(srv.secret, byte(rand.UintN(256)))
+	}
+	const dsn = "postgres://postgres:@localhost:5432/pockerdb"
+	srv.dbpool, err = pgxpool.New(context.Background(), dsn)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	if err := srv.dbpool.Ping(context.Background()); err != nil {
+		panic(err)
+	}
+	games = make(map[int]*Game)
+
+	ClearGame()
+	// createGame()
+	http.HandleFunc("/", homeHendle)
+	http.HandleFunc("/api/ping", Ping)
+	http.HandleFunc("/api/cards", Cards)
+	http.HandleFunc("/api/cnt", LenTable)
+	http.HandleFunc("/api/table", GetTable)
+	http.HandleFunc("/api/join", Join)
+	http.HandleFunc("/api/fold", Fold)
+	http.HandleFunc("/game", playersHandle)
+	http.HandleFunc("/api/signup", SignUp)
+	http.HandleFunc("/api/signin", SignIn)
+	http.HandleFunc("/api/game/create", CreateGame)
+	http.HandleFunc("/api/game/join", JoinGame)
+	fs := http.FileServer(http.Dir("./card_img"))
+	http.Handle("/card_img/", http.StripPrefix("/card_img/", fs))
+	go http.ListenAndServe(":"+strconv.Itoa(srv.conf.Port), nil)
+	for {
+		s := ""
+		fmt.Scanln(&s)
+		if isGameStart {
+			switch s {
+			case "exit":
+				os.Exit(0)
+			case "next":
+				OpenCard()
+			case "next3":
+				OpenCard()
+				OpenCard()
+				OpenCard()
+			case "end":
+				// EndGame()
+				// createGame()
+			default:
+				fmt.Println("Invalid command")
+			}
+		} else {
+			switch s {
+			case "exit":
+				os.Exit(0)
+			case "start":
+				StartGame()
+			case "clear":
+				ClearGame()
+			default:
+				fmt.Println("Invalid command")
+			}
+		}
+	}
+}

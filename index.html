@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <style>
+        body {
+            background-color: #257c33;
+        }
+    </style>
+    <meta charset="UTF-8">
+    <title>Poker</title>
+</head>
+
+<body>
+    <h1>Your cards: </h1>
+    <img src="/card_img/{{.Card1}}.png" alt="{{.Card1}}" width="10%">
+    <img src="/card_img/{{.Card2}}.png" alt="{{.Card2}}" width="10%">
+
+    <div id="table">
+        <h1>Table: </h1>
+        {{range .Table}}<img src="/card_img/{{.}}.png" alt="{{.}}" width="18%"> {{end}}
+    </div>
+    <button id="fold_btn">Fold</button>
+
+    <h2>Current balance: {{.Bal}}</h2>
+
+    <!-- <script>
+        const tb = document.getElementById("table")
+        const el = document.createElement("img")
+        cd = "6b"
+        el.src = "/card_img/" + cd + ".png"
+        el.style.width = '18%'
+        el.alt = cd
+        tb.appendChild(el)
+        let cur = null
+        while (true) {
+            fetch("/api/cnt")
+                .then(Response => Response.json())
+                .then(data => {
+                    
+                    cnt = Number(data);
+                    if (cur == null) {
+                        cur = cnt
+                    } else if (cur < cnt) {
+                        location.reload(true)
+                        cur = cnt
+                    }
+                })
+        } 
+    </script> -->
+
+    <script>
+        const btn = document.getElementById('fold_btn');
+        btn.addEventListener('click', function () {
+            fetch("/api/fold?id={{.Token}}")
+        })
+    </script>
+</body>
+
+</html>
