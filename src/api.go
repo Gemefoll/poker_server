@@ -8,7 +8,6 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"os"
 	"strconv"
 	"time"
 
@@ -58,7 +57,15 @@ func SignUp(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		fmt.Println(err)
 	}
-	fmt.Fprint(w, GetToken(res.Name))
+	type Resp struct {
+		AccessToken  string
+		RefreshToken string
+	}
+	enc := json.NewEncoder(w)
+	enc.Encode(Resp{
+		AccessToken:  GetToken(res.Name),
+		RefreshToken: "",
+	})
 }
 
 func SignIn(w http.ResponseWriter, r *http.Request) {
@@ -217,11 +224,6 @@ func JoinGame(w http.ResponseWriter, r *http.Request) {
 
 func Ping(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprint(w, "ok")
-}
-
-func homeHendle(w http.ResponseWriter, r *http.Request) {
-	b, _ := os.ReadFile("start.html")
-	w.Write(b)
 }
 
 func Cards(w http.ResponseWriter, r *http.Request) {

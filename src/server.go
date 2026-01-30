@@ -92,18 +92,14 @@ func setupServer() {
 }
 
 func StartServer() error {
-	http.HandleFunc("/", homeHendle)
-	http.HandleFunc("/api/ping", Ping)
-	http.HandleFunc("/api/cards", Cards)
-	http.HandleFunc("/api/cnt", LenTable)
-	http.HandleFunc("/api/table", GetTable)
-	http.HandleFunc("/api/fold", Fold)
-	http.HandleFunc("/game", playersHandle)
-	http.HandleFunc("/api/signup", SignUp)
-	http.HandleFunc("/api/signin", SignIn)
-	http.HandleFunc("/api/game/create", CreateGame)
-	http.HandleFunc("/api/game/join", JoinGame)
-	http.Handle("/card_img/", http.StripPrefix("/card_img/", http.FileServer(http.Dir("./card_img"))))
+	http.HandleFunc("/ping", Ping)
+	http.HandleFunc("/cards", Cards)
+	http.HandleFunc("/table", GetTable)
+	http.HandleFunc("/fold", Fold)
+	http.HandleFunc("/signup", SignUp)
+	http.HandleFunc("/signin", SignIn)
+	http.HandleFunc("/game/create", CreateGame)
+	http.HandleFunc("/game/join", JoinGame)
 	fmt.Println(srv.conf.Port)
 	return http.ListenAndServe(":"+strconv.Itoa(srv.conf.Port), nil)
 }

@@ -1,6 +1,6 @@
 services:
   db:
-    image: postgres:alpine3.23
+    image: postgres
     restart: always
     environment:
       POSTGRES_DB: "pokerdb"
@@ -24,6 +24,21 @@ services:
       - backend
     depends_on:
       - db
+  web:
+    image: nginx
+    volumes:
+    - ./templates:/etc/nginx/templates
+    - type: bind
+      source: ./nginx.conf
+      target: /etc/nginx/conf.d/default.conf
+      read_only: true
+    - ./resources/card_img:/data/card_img
+    ports:
+    - "8080:80"
+    networks:
+    - backend
+    depends_on:
+    - backend
 networks:
   backend:
     driver: bridge
