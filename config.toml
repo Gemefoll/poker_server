@@ -1,7 +1,0 @@
-start_balance = 15000
-port = 8080
-postgres_db_name = "pockerdb"
-postgres_user = "postgres"
-postgres_password = ""
-postgres_host = "localhost"
-postgres_port = 5432

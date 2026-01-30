@@ -3,7 +3,6 @@ module poker_server
 go 1.25.6
 
 require (
-	github.com/BurntSushi/toml v1.6.0
 	github.com/golang-jwt/jwt/v5 v5.3.1
 	github.com/jackc/pgx/v5 v5.8.0
 )

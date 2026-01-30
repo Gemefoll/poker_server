@@ -1,10 +1,11 @@
 FROM golang:latest
 
-COPY . /app
+COPY ./src/* /app/
+COPY ./resources/* /app/
+COPY go.mod /app/
+COPY go.sum /app/
 
 WORKDIR /app
 RUN go fix
-
-ENV START_BALANCE=15000
 
 CMD ["go", "run", "."]

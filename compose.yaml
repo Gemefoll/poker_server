@@ -1,0 +1,29 @@
+services:
+  db:
+    image: postgres:alpine3.23
+    restart: always
+    environment:
+      POSTGRES_DB: "pokerdb"
+      POSTGRES_USER: "postgres"
+      POSTGRES_PASSWORD: "aboba"
+    networks:
+      - backend
+  backend:
+    build: .
+    restart: always
+    ports:
+      - "12345:12345"
+    environment:
+      DB_HOST: "db"
+      DB_PASSWORD: "aboba"
+      DB_USER: "postgres"
+      DB_PORT: "5432"
+      DB_NAME: "pokerdb"
+      PORT: "12345"
+    networks:
+      - backend
+    depends_on:
+      - db
+networks:
+  backend:
+    driver: bridge
