@@ -14,7 +14,6 @@ import (
 
 	// "github.com/georgysavva/scany/v2/pgxscan"
 	"github.com/golang-jwt/jwt/v5"
-	gonanoid "github.com/matoous/go-nanoid/v2"
 )
 
 func GetToken(Name string) string {
@@ -41,7 +40,7 @@ func SignUp(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if len(res.Name) > 20 || len(res.Pass) > 20 {
-		w.WriteHeader(http.StatusRequestHeaderFieldsTooLarge)
+		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
 	if len(res.Pass) < 6 {
@@ -257,11 +256,6 @@ func GetTable(w http.ResponseWriter, r *http.Request) {
 	lk.Unlock()
 }
 
-func NewToken() Token {
-	id, _ := gonanoid.New()
-	return id
-}
-
 func LenTable(w http.ResponseWriter, r *http.Request) {
 	if !isGameStart {
 		http.Error(w, "Game is not start", http.StatusTooEarly)
@@ -271,35 +265,6 @@ func LenTable(w http.ResponseWriter, r *http.Request) {
 	x := len(table)
 	lk.Unlock()
 	fmt.Fprint(w, x)
-}
-
-func Join(w http.ResponseWriter, r *http.Request) {
-	if isGameStart {
-		http.Error(w, "Game is start", http.StatusConflict)
-		return
-	}
-	if len(tokens) == 23 {
-		http.Error(w, "Game is full", http.StatusBadRequest)
-		return
-	}
-	val := r.URL.Query()
-	a, ok := val["name"]
-	if !ok {
-		http.Error(w, "Name not found", http.StatusBadRequest)
-		return
-	}
-	nm := a[0]
-	token := NewToken()
-	lk.Lock()
-	name[token] = nm
-	tokens = append(tokens, token)
-	lk.Unlock()
-	f, ok := val["redir"]
-	if ok && f[0] == "true" {
-		http.Redirect(w, r, "/game?id="+token, http.StatusSeeOther)
-	} else {
-		fmt.Fprint(w, token)
-	}
 }
 
 func Fold(w http.ResponseWriter, r *http.Request) {

@@ -45,7 +45,6 @@ func StartServer() error {
 	http.HandleFunc("/api/cards", Cards)
 	http.HandleFunc("/api/cnt", LenTable)
 	http.HandleFunc("/api/table", GetTable)
-	http.HandleFunc("/api/join", Join)
 	http.HandleFunc("/api/fold", Fold)
 	http.HandleFunc("/game", playersHandle)
 	http.HandleFunc("/api/signup", SignUp)
