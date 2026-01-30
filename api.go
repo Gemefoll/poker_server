@@ -121,29 +121,74 @@ func CheckAuth(r *http.Request) (string, error) {
 }
 
 func CreateGame(w http.ResponseWriter, r *http.Request) {
-	Name, err := CheckAuth(r)
+	username, err := CheckAuth(r)
 	if err != nil {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
 	}
-	if _, ok := WhereIsUser[Name]; ok {
+	if _, ok := WhereIsUser[username]; ok {
 		w.WriteHeader(http.StatusConflict)
 		return
 	}
 	srv.gamesPtr++
 	res := srv.gamesPtr
 	fmt.Fprint(w, res-1)
-	games[res-1] = NewGame(Name)
-	WhereIsUser[Name] = res - 1
+	games[res-1] = NewGame(username)
+	WhereIsUser[username] = res - 1
 }
 
-func JoinGame(w http.ResponseWriter, r *http.Request) {
-	Name, err := CheckAuth(r)
+func GetUser(w http.ResponseWriter, r *http.Request) {
+	username, err := CheckAuth(r)
 	if err != nil {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
 	}
-	if _, ok := WhereIsUser[Name]; ok {
+	a := srv.dbpool.QueryRow(context.Background(), "SELECT Balance FROM players WHERE name = $1", username)
+	var bal int
+	if err := a.Scan(&bal); err != nil {
+		panic(err)
+	}
+	type Data struct {
+		Username string
+		Balance  int
+	}
+	enc := json.NewEncoder(w)
+	dat := Data{
+		Username: username,
+		Balance:  bal,
+	}
+	if err := enc.Encode(dat); err != nil {
+		panic(err)
+	}
+}
+
+func DeleteUser(w http.ResponseWriter, r *http.Request) {
+	username, err := CheckAuth(r)
+	if err != nil {
+		w.WriteHeader(http.StatusUnauthorized)
+		return
+	}
+	if _, err := srv.dbpool.Exec(context.Background(), "DELETE FROM players WHERE name = $1", username); err != nil {
+		panic(err)
+	}
+}
+
+func UserHeader(w http.ResponseWriter, r *http.Request) {
+	switch r.Method {
+	case http.MethodGet:
+		GetUser(w, r)
+	case http.MethodDelete:
+		DeleteUser(w, r)
+	}
+}
+
+func JoinGame(w http.ResponseWriter, r *http.Request) {
+	username, err := CheckAuth(r)
+	if err != nil {
+		w.WriteHeader(http.StatusUnauthorized)
+		return
+	}
+	if _, ok := WhereIsUser[username]; ok {
 		w.WriteHeader(http.StatusConflict)
 		return
 	}
@@ -160,9 +205,9 @@ func JoinGame(w http.ResponseWriter, r *http.Request) {
 	if !ok || gm.IsStart {
 		w.WriteHeader(http.StatusBadRequest)
 	}
-	gm.UsersId = append(gm.UsersId, Name)
+	gm.UsersId = append(gm.UsersId, username)
 	gm.Bet = append(gm.Bet, 0)
-	a := srv.dbpool.QueryRow(context.Background(), "SELECT Balance FROM players WHERE name = $1", Name)
+	a := srv.dbpool.QueryRow(context.Background(), "SELECT Balance FROM players WHERE name = $1", username)
 	var bal int
 	if err := a.Scan(&bal); err != nil {
 		w.WriteHeader(http.StatusConflict)
