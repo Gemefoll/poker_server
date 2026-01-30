@@ -93,7 +93,15 @@ func SignIn(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusForbidden)
 		return
 	}
-	fmt.Fprint(w, GetToken(res.Name))
+	enc := json.NewEncoder(w)
+	type Resp struct {
+		AccessToken  string
+		RefreshToken string
+	}
+	enc.Encode(Resp{
+		AccessToken:  GetToken(res.Name),
+		RefreshToken: "",
+	})
 }
 
 func CheckAuth(r *http.Request) (string, error) {
