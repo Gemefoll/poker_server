@@ -27,7 +27,7 @@ func setupServer() {
 		panic(err)
 	}
 	srv.secret = []byte(rand.Text())
-	const dsn = "postgres://postgres:@localhost:5432/pockerdb"
+	var dsn = "postgres://" + srv.conf.Postgres_user + ":@"+ srv.conf.Postgres_host + ":" + strconv.Itoa(srv.conf.Postgres_port) + "/" + srv.conf.Postgres_db_name
 	srv.dbpool, err = pgxpool.New(context.Background(), dsn)
 	if err != nil {
 		fmt.Println(err)

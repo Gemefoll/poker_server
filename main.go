@@ -25,8 +25,13 @@ var games map[int]*Game
 var WhereIsUser map[string]int
 
 type Config struct {
-	Port          int
-	Start_balance int
+	Port              int
+	Start_balance     int
+	Postgres_db_name  string
+	Postgres_user     string
+	Postgres_password string
+	Postgres_host     string
+	Postgres_port     int
 }
 
 type Server struct {
