@@ -27,12 +27,11 @@ services:
   web:
     image: nginx
     volumes:
-    - ./templates:/etc/nginx/templates
     - type: bind
       source: ./nginx.conf
-      target: /etc/nginx/conf.d/default.conf
+      target: /etc/nginx/nginx.conf
       read_only: true
-    - ./resources/card_img:/data/card_img
+    - ./resources/card_img:/data/card_img:ro
     ports:
     - "8080:80"
     networks:
