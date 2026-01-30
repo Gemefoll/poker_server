@@ -126,16 +126,25 @@ func CreateGame(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
 	}
+	if _, ok := WhereIsUser[Name]; ok {
+		w.WriteHeader(http.StatusConflict)
+		return
+	}
 	srv.gamesPtr++
 	res := srv.gamesPtr
 	fmt.Fprint(w, res-1)
 	games[res-1] = NewGame(Name)
+	WhereIsUser[Name] = res - 1
 }
 
 func JoinGame(w http.ResponseWriter, r *http.Request) {
 	Name, err := CheckAuth(r)
 	if err != nil {
 		w.WriteHeader(http.StatusUnauthorized)
+		return
+	}
+	if _, ok := WhereIsUser[Name]; ok {
+		w.WriteHeader(http.StatusConflict)
 		return
 	}
 	if v, ok := r.URL.Query()["id"]; !ok || len(v) == 0 {
