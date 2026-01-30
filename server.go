@@ -13,6 +13,17 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
+const tables = `
+CREATE TABLE IF NOT EXISTS players (
+	ID SERIAL PRIMARY KEY,
+	Name varchar(20) UNIQUE NOT NULL, 
+	Role varchar(5) NOT NULL, 
+	Pass varchar(64) NOT NULL, 
+	Salt varchar(26) NOT NULL, 
+	Balance int NOT NULL
+);
+`
+
 func setupServer() {
 	fl, err := os.Open("config.toml")
 	if err != nil {
@@ -27,13 +38,13 @@ func setupServer() {
 		panic(err)
 	}
 	srv.secret = []byte(rand.Text())
-	var dsn = "postgres://" + srv.conf.Postgres_user + ":@"+ srv.conf.Postgres_host + ":" + strconv.Itoa(srv.conf.Postgres_port) + "/" + srv.conf.Postgres_db_name
+	var dsn = "postgres://" + srv.conf.Postgres_user + ":@" + srv.conf.Postgres_host + ":" + strconv.Itoa(srv.conf.Postgres_port) + "/" + srv.conf.Postgres_db_name
 	srv.dbpool, err = pgxpool.New(context.Background(), dsn)
 	if err != nil {
 		fmt.Println(err)
 		return
 	}
-	if err := srv.dbpool.Ping(context.Background()); err != nil {
+	if _, err := srv.dbpool.Exec(context.Background(), tables); err != nil {
 		panic(err)
 	}
 	games = make(map[int]*Game)
