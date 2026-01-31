@@ -160,7 +160,7 @@ func GetUserMe(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
 	}
-	a := srv.dbpool.QueryRow(context.Background(), "SELECT (Id, Role, Balance) FROM players WHERE name = $1", username)
+	a := srv.dbpool.QueryRow(context.Background(), "SELECT Id, Role, Balance FROM players WHERE name = $1", username)
 	var Id, Balance int
 	var Role string
 	if err := a.Scan(&Id, &Role, &Balance); err != nil {
