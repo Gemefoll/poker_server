@@ -20,7 +20,7 @@ paths:
                 Pass:
                   type: string
       responses:
-        '200':
+        '201':
           description: OK
           content:
             application/json:
@@ -29,7 +29,7 @@ paths:
         '409':
           description: The name is already exist
         '422':
-          description: The name or the pass is too long or the pass is too small
+          description: The name or the pass doesn't allow
   /user/auth:
     post:
       requestBody:
@@ -51,6 +51,24 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/PairToken'
+        '409':
+          description: The name doesn't exist
+        '422':
+          description: The name or the pass don't allow
+  /user/me:
+    get:
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PairToken'
+        '401':
+          description: Token isn't valid
+      
 components:
   securitySchemes:
     BearerAuth:

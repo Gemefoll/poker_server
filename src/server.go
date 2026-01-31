@@ -93,7 +93,7 @@ func setupServer() {
 
 func StartServer() error {
 	http.HandleFunc("/api/ping", Ping)
-	http.HandleFunc("/api/user", UserHeader)
+	http.HandleFunc("/api/user/me", UserHeaderMe)
 	http.HandleFunc("/api/user/create", SignUp)
 	http.HandleFunc("/api/user/auth", SignIn)
 	http.HandleFunc("/api/game/create", CreateGame)

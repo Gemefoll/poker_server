@@ -42,7 +42,7 @@ func SignUp(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
-	if len(res.Pass) < 6 {
+	if len(res.Pass) < 6 || len(res.Name) == 0 {
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
@@ -57,12 +57,8 @@ func SignUp(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		fmt.Println(err)
 	}
-	type Resp struct {
-		AccessToken  string
-		RefreshToken string
-	}
 	enc := json.NewEncoder(w)
-	enc.Encode(Resp{
+	enc.Encode(TokenPair{
 		AccessToken:  GetToken(res.Name),
 		RefreshToken: "",
 	})
@@ -94,11 +90,7 @@ func SignIn(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	enc := json.NewEncoder(w)
-	type Resp struct {
-		AccessToken  string
-		RefreshToken string
-	}
-	enc.Encode(Resp{
+	enc.Encode(TokenPair{
 		AccessToken:  GetToken(res.Name),
 		RefreshToken: "",
 	})
@@ -151,15 +143,16 @@ func CreateGame(w http.ResponseWriter, r *http.Request) {
 	WhereIsUser[username] = res - 1
 }
 
-func GetUser(w http.ResponseWriter, r *http.Request) {
+func GetUserMe(w http.ResponseWriter, r *http.Request) {
 	username, err := CheckAuth(r)
 	if err != nil {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
 	}
-	a := srv.dbpool.QueryRow(context.Background(), "SELECT Balance FROM players WHERE name = $1", username)
-	var bal int
-	if err := a.Scan(&bal); err != nil {
+	a := srv.dbpool.QueryRow(context.Background(), "SELECT (Id, Role, Balance) FROM players WHERE name = $1", username)
+	var Id, Balance int
+	var Role string
+	if err := a.Scan(&Id, &Role, &Balance); err != nil {
 		panic(err)
 	}
 	type Data struct {
@@ -167,16 +160,18 @@ func GetUser(w http.ResponseWriter, r *http.Request) {
 		Balance  int
 	}
 	enc := json.NewEncoder(w)
-	dat := Data{
-		Username: username,
-		Balance:  bal,
+	dat := User{
+		Name:    username,
+		Balance: Balance,
+		Role:    Role,
+		Id:      Id,
 	}
 	if err := enc.Encode(dat); err != nil {
 		panic(err)
 	}
 }
 
-func DeleteUser(w http.ResponseWriter, r *http.Request) {
+func DeleteUserMe(w http.ResponseWriter, r *http.Request) {
 	username, err := CheckAuth(r)
 	if err != nil {
 		w.WriteHeader(http.StatusUnauthorized)
@@ -187,12 +182,12 @@ func DeleteUser(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func UserHeader(w http.ResponseWriter, r *http.Request) {
+func UserHeaderMe(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case http.MethodGet:
-		GetUser(w, r)
+		GetUserMe(w, r)
 	case http.MethodDelete:
-		DeleteUser(w, r)
+		DeleteUserMe(w, r)
 	}
 }
 

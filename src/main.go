@@ -4,61 +4,12 @@ import (
 	"math/rand/v2"
 	"slices"
 	"sort"
-
-	"github.com/jackc/pgx/v5/pgxpool"
 )
-
-type Token = string
 
 var isGameStart bool
 var curBal map[Token]int
 var games map[int]*Game
 var WhereIsUser map[string]int
-
-type Config struct {
-	Port              int
-	Start_balance     int
-	Postgres_db_name  string
-	Postgres_user     string
-	Postgres_password string
-	Postgres_host     string
-	Postgres_port     int
-}
-
-type Server struct {
-	secret   []byte
-	dbpool   *pgxpool.Pool
-	conf     *Config
-	gamesPtr int
-}
-
-type User struct {
-	Name    string
-	Role    string
-	Pass    string
-	Salt    string
-	Balance int
-}
-
-type Card struct {
-	Suit int
-	Rank int
-}
-
-type Game struct {
-	UsersId []string
-	Owner   string
-	Table   []Card
-	Pots    [][]string
-	Bet     []int
-	MaxBet  []int
-	Deck    []Card
-	Hand    map[string][]Card
-	Iter    int
-	Round   int
-	Turn    int
-	IsStart bool
-}
 
 var srv Server
 
