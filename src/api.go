@@ -15,17 +15,23 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 )
 
-func GetToken(Name string) string {
-	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
+func GetToken(Name string) TokenPair {
+	AccessToken := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
 		"Name":         Name,
-		"WillExpireAt": time.Now().Add(time.Hour * 24).Format(time.UnixDate),
+		"Type":         "Access",
+		"WillExpireAt": time.Now().Add(time.Minute * 15).Format(time.UnixDate),
 	})
-	var str string
-	str, err := token.SignedString(srv.secret)
-	if err != nil {
-		panic(err)
+	RefreshToken := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
+		"Name":         Name,
+		"Type":         "Refresh",
+		"WillExpireAt": time.Now().Add(time.Hour * 24 * 30).Format(time.UnixDate),
+	})
+	StrAccessToken, _ := AccessToken.SignedString(srv.secret)
+	StrRefreshToken, _ := RefreshToken.SignedString(srv.secret)
+	return TokenPair{
+		AccessToken:  StrAccessToken,
+		RefreshToken: StrRefreshToken,
 	}
-	return str
 }
 
 func SignUp(w http.ResponseWriter, r *http.Request) {
@@ -58,10 +64,7 @@ func SignUp(w http.ResponseWriter, r *http.Request) {
 		fmt.Println(err)
 	}
 	enc := json.NewEncoder(w)
-	enc.Encode(TokenPair{
-		AccessToken:  GetToken(res.Name),
-		RefreshToken: "",
-	})
+	enc.Encode(GetToken(res.Name))
 }
 
 func SignIn(w http.ResponseWriter, r *http.Request) {
@@ -90,13 +93,10 @@ func SignIn(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	enc := json.NewEncoder(w)
-	enc.Encode(TokenPair{
-		AccessToken:  GetToken(res.Name),
-		RefreshToken: "",
-	})
+	enc.Encode(GetToken(res.Name))
 }
 
-func CheckAuth(r *http.Request) (string, error) {
+func CheckAuth(r *http.Request, ReqTp string) (string, error) {
 	var tokenString string
 	var Name string
 	if res, ok := r.Header["Authorization"]; ok {
@@ -113,7 +113,8 @@ func CheckAuth(r *http.Request) (string, error) {
 				Name = claims["Name"].(string)
 				WillExpireAtStr, _ := (claims["WillExpireAt"].(string))
 				WillExpireAt, _ := time.Parse(time.UnixDate, WillExpireAtStr)
-				if time.Now().After(WillExpireAt) {
+				tp := (claims["Type"].(string))
+				if time.Now().After(WillExpireAt) || tp != ReqTp {
 					return "", errors.New("UAU")
 				}
 			} else {
@@ -126,8 +127,18 @@ func CheckAuth(r *http.Request) (string, error) {
 	return Name, nil
 }
 
+func Refresh(w http.ResponseWriter, r *http.Request) {
+	username, err := CheckAuth(r, "Refresh")
+	if err != nil {
+		w.WriteHeader(http.StatusUnauthorized)
+		return
+	}
+	enc := json.NewEncoder(w)
+	enc.Encode(GetToken(username))
+}
+
 func CreateGame(w http.ResponseWriter, r *http.Request) {
-	username, err := CheckAuth(r)
+	username, err := CheckAuth(r, "Access")
 	if err != nil {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
@@ -144,7 +155,7 @@ func CreateGame(w http.ResponseWriter, r *http.Request) {
 }
 
 func GetUserMe(w http.ResponseWriter, r *http.Request) {
-	username, err := CheckAuth(r)
+	username, err := CheckAuth(r, "Access")
 	if err != nil {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
@@ -172,7 +183,7 @@ func GetUserMe(w http.ResponseWriter, r *http.Request) {
 }
 
 func DeleteUserMe(w http.ResponseWriter, r *http.Request) {
-	username, err := CheckAuth(r)
+	username, err := CheckAuth(r, "Access")
 	if err != nil {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
@@ -192,7 +203,7 @@ func UserHeaderMe(w http.ResponseWriter, r *http.Request) {
 }
 
 func JoinGame(w http.ResponseWriter, r *http.Request) {
-	username, err := CheckAuth(r)
+	username, err := CheckAuth(r, "Access")
 	if err != nil {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
