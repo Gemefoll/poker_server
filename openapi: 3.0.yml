@@ -1,7 +1,7 @@
-openapi: '3.0.3'
+openapi: "3.0.3"
 info:
   title: Poker server
-  version: '1.0'
+  version: "1.0"
 servers:
   - url: https://api.server.test/v1
 paths:
@@ -20,15 +20,15 @@ paths:
                 Pass:
                   type: string
       responses:
-        '201':
+        "201":
           description: OK
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/PairToken'
-        '409':
+                $ref: "#/components/schemas/PairToken"
+        "409":
           description: The name is already exist
-        '422':
+        "422":
           description: The name or the pass doesn't allow
   /user/auth:
     post:
@@ -45,30 +45,91 @@ paths:
                 Pass:
                   type: string
       responses:
-        '200':
+        "200":
           description: OK
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/PairToken'
-        '409':
+                $ref: "#/components/schemas/PairToken"
+        "409":
           description: The name doesn't exist
-        '422':
+        "422":
           description: The name or the pass don't allow
   /user/me:
     get:
       security:
         - BearerAuth: []
       responses:
-        '200':
+        "200":
           description: OK
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/PairToken'
-        '401':
+                $ref: "#/components/schemas/User"
+        "401":
           description: Token isn't valid
-      
+    delete:
+      security:
+        - BearerAuth: []
+      responses:
+        "200":
+          description: OK
+        "401":
+          description: Token isn't valid
+    put:
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/User"
+      responses:
+        "200":
+          description: OK
+        "401":
+          description: Token isn't valid
+
+  # /user/{Id}:
+  #   get:
+  #     responses:
+  #       "200":
+  #         description: OK
+  #         content:
+  #           application/json:
+  #             schema:
+  #               $ref: "#/components/schemas/User"
+  #       "401":
+  #         description: Token isn't valid
+  #   delete:
+  #     description: ONLY FOR ADMIN
+  #     security:
+  #       - BearerAuth: []
+  #     responses:
+  #       "200":
+  #         description: OK
+  #       "401":
+  #         description: Token isn't valid
+  #       "403":
+  #         description: Not admin
+  #   put:
+  #     description: ONLY FOR ADMIN
+  #     security:
+  #       - BearerAuth: []
+  #     requestBody:
+  #       required: true
+  #       content:
+  #         application/json:
+  #           schema:
+  #             $ref: "#/components/schemas/User"
+  #     responses:
+  #       "200":
+  #         description: OK
+  #       "401":
+  #         description: Token isn't valid
+  #       "403":
+  #         description: Not admin
 components:
   securitySchemes:
     BearerAuth:
@@ -84,3 +145,16 @@ components:
           type: string
         RefreshToken:
           type: string
+    User:
+      type: object
+      required: [Id, Name, Role, Balance]
+      properties:
+        Id:
+          type: integer
+          description: Id with your request body will ignore
+        Name:
+          type: string
+        Role:
+          type: string
+        Balance:
+          type: integer
