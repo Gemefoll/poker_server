@@ -13,9 +13,9 @@ paths:
           application/json:
             schema:
               type: object
-              required: [User, Pass]
+              required: [Name, Pass]
               properties:
-                User:
+                Name:
                   type: string
                 Pass:
                   type: string
@@ -38,9 +38,9 @@ paths:
           application/json:
             schema:
               type: object
-              required: [User, Pass]
+              required: [Name, Pass]
               properties:
-                User:
+                Name:
                   type: string
                 Pass:
                   type: string

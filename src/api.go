@@ -34,10 +34,12 @@ func SignUp(w http.ResponseWriter, r *http.Request) {
 		Pass string
 	}
 	var res Data
+	fmt.Println("aboba")
 	if err := json.NewDecoder(r.Body).Decode(&res); err != nil {
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
+	fmt.Println(res)
 	if len(res.Name) > 20 || len(res.Pass) > 20 {
 		w.WriteHeader(http.StatusBadRequest)
 		return
@@ -75,7 +77,7 @@ func SignIn(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if len(res.Name) > 20 {
-		w.WriteHeader(http.StatusRequestHeaderFieldsTooLarge)
+		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
 	a := srv.dbpool.QueryRow(context.Background(), "SELECT Pass, Salt FROM players WHERE name = $1", res.Name)
