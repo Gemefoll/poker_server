@@ -92,12 +92,12 @@ func setupServer() {
 }
 
 func StartServer() error {
-	http.HandleFunc("/ping", Ping)
-	http.HandleFunc("/user", UserHeader)
-	http.HandleFunc("/user/create", SignUp)
-	http.HandleFunc("/user/auth", SignIn)
-	http.HandleFunc("/game/create", CreateGame)
-	http.HandleFunc("/game/join", JoinGame)
+	http.HandleFunc("/api/ping", Ping)
+	http.HandleFunc("/api/user", UserHeader)
+	http.HandleFunc("/api/user/create", SignUp)
+	http.HandleFunc("/api/user/auth", SignIn)
+	http.HandleFunc("/api/game/create", CreateGame)
+	http.HandleFunc("/api/game/join", JoinGame)
 	fmt.Println(srv.conf.Port)
 	return http.ListenAndServe(":"+strconv.Itoa(srv.conf.Port), nil)
 }

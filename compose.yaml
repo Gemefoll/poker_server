@@ -6,8 +6,6 @@ services:
       POSTGRES_DB: "pokerdb"
       POSTGRES_USER: "postgres"
       POSTGRES_PASSWORD: "aboba"
-    networks:
-      - backend
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
       interval: 10s
@@ -17,8 +15,6 @@ services:
   backend:
     build: .
     restart: always
-    ports:
-      - "12345:12345"
     environment:
       DB_HOST: "db"
       DB_PASSWORD: "aboba"
@@ -26,8 +22,6 @@ services:
       DB_PORT: "5432"
       DB_NAME: "pokerdb"
       PORT: "12345"
-    networks:
-      - backend
     depends_on:
       db:
         condition: service_healthy
@@ -43,11 +37,6 @@ services:
     - ./resources/card_img:/data/card_img:ro
     ports:
     - "8080:80"
-    networks:
-    - backend
     depends_on:
       backend:
         condition: service_started
-networks:
-  backend:
-    driver: bridge
