@@ -34,7 +34,8 @@ services:
       source: ./nginx.conf
       target: /etc/nginx/nginx.conf
       read_only: true
-    - ./resources/card_img:/data/card_img:ro
+    # - ./resources/card_img:/data/card_img:ro
+    - ./dist:/data/dist
     ports:
     - "8080:80"
     depends_on:
