@@ -93,11 +93,9 @@ func setupServer() {
 
 func StartServer() error {
 	http.HandleFunc("/ping", Ping)
-	http.HandleFunc("/cards", Cards)
-	http.HandleFunc("/table", GetTable)
-	http.HandleFunc("/fold", Fold)
-	http.HandleFunc("/signup", SignUp)
-	http.HandleFunc("/signin", SignIn)
+	http.HandleFunc("/user", UserHeader)
+	http.HandleFunc("/user/create", SignUp)
+	http.HandleFunc("/user/auth", SignIn)
 	http.HandleFunc("/game/create", CreateGame)
 	http.HandleFunc("/game/join", JoinGame)
 	fmt.Println(srv.conf.Port)

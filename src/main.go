@@ -4,21 +4,12 @@ import (
 	"math/rand/v2"
 	"slices"
 	"sort"
-	"sync"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 type Token = string
 
-var lk sync.Mutex
-var deck [][]int
-var iter int
-var mapa map[Token][][]int
-var name map[Token]string
-var tokens []Token
-var table [][]int
-var folds map[Token]bool
 var isGameStart bool
 var curBal map[Token]int
 var games map[int]*Game
@@ -178,7 +169,6 @@ func NewDeck() []Card {
 	rand.Shuffle(len(deck), func(a, b int) {
 		deck[a], deck[b] = deck[b], deck[a]
 	})
-	iter = 0
 	return deck
 }
 
@@ -190,20 +180,6 @@ func Convert(a [][]int) []string {
 		ans = append(ans, nom[i[1]]+mast[i[0]])
 	}
 	return ans
-}
-
-func ClearGame() {
-	lk.Lock()
-	name = make(map[string]string)
-	tokens = make([]Token, 0)
-	lk.Unlock()
-}
-
-func OpenCard() {
-	lk.Lock()
-	table = append(table, deck[iter])
-	lk.Unlock()
-	iter++
 }
 
 // func EndGame() {
@@ -262,7 +238,6 @@ func OpenCard() {
 
 func main() {
 	setupServer()
-	ClearGame()
 	err := StartServer()
 	if err != nil {
 		panic(err)
