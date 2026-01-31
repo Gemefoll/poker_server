@@ -1,9 +1,6 @@
 FROM golang AS builder
 
 COPY ./src/* /app/
-COPY ./resources/card_img /app/
-COPY ./resources/index.html /app/
-COPY ./resources/start.html /app/
 COPY go.mod /app/
 COPY go.sum /app/
 

@@ -1,6 +1,6 @@
 services:
   db:
-    image: postgres
+    image: postgres:18
     restart: always
     environment:
       POSTGRES_DB: "pokerdb"
@@ -8,6 +8,12 @@ services:
       POSTGRES_PASSWORD: "aboba"
     networks:
       - backend
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 10s
+      retries: 5
+      start_period: 3s
+      timeout: 10s
   backend:
     build: .
     restart: always
@@ -23,9 +29,12 @@ services:
     networks:
       - backend
     depends_on:
-      - db
+      db:
+        condition: service_healthy
+        restart: true
   web:
     image: nginx
+    restart: always
     volumes:
     - type: bind
       source: ./nginx.conf
@@ -37,7 +46,8 @@ services:
     networks:
     - backend
     depends_on:
-    - backend
+      backend:
+        condition: service_started
 networks:
   backend:
     driver: bridge
