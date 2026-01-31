@@ -9,18 +9,18 @@ import (
 var isGameStart bool
 var curBal map[Token]int
 var games map[int]*Game
-var WhereIsUser map[string]int
+var WhereIsUser map[ID]int
 
 var srv Server
 
-func NewGame(Owner string) *Game {
+func NewGame(Owner ID) *Game {
 	return &Game{
-		UsersId: make([]string, 0),
+		UserIDs: make([]ID, 0),
 		Table:   make([]Card, 0),
-		Pots:    make([][]string, 0),
+		Pots:    make([][]ID, 0),
 		Bet:     make([]int, 0),
-		MaxBet:  make([]int, 0),
-		Hand:    make(map[string][]Card),
+		Stack:   make([]int, 0),
+		Hand:    make(map[ID][]Card),
 		Owner:   Owner,
 		Deck:    NewDeck(),
 	}

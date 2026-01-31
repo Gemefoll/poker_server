@@ -5,6 +5,7 @@ import (
 )
 
 type Token = string
+type ID = int
 
 type Config struct {
 	Port              int
@@ -24,7 +25,7 @@ type Server struct {
 }
 
 type User struct {
-	Id      int
+	Id      ID
 	Name    string
 	Role    string
 	Balance int
@@ -41,14 +42,14 @@ type TokenPair struct {
 }
 
 type Game struct {
-	UsersId []string
-	Owner   string
+	UserIDs []ID
+	Owner   ID
 	Table   []Card
-	Pots    [][]string
+	Pots    [][]ID
 	Bet     []int
-	MaxBet  []int
+	Stack   []int
 	Deck    []Card
-	Hand    map[string][]Card
+	Hand    map[ID][]Card
 	Iter    int
 	Round   int
 	Turn    int

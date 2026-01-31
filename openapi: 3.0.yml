@@ -76,21 +76,37 @@ paths:
           description: OK
         "401":
           description: Token isn't valid
-    put:
-      security:
-        - BearerAuth: []
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/User"
+    # put:
+    #   security:
+    #     - BearerAuth: []
+    #   requestBody:
+    #     required: true
+    #     content:
+    #       application/json:
+    #         schema:
+    #           $ref: "#/components/schemas/User"
+    #   responses:
+    #     "200":
+    #       description: OK
+    #     "401":
+    #       description: Token isn't valid
+  /game/create:
+    post:
       responses:
-        "200":
+        "201":
           description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [Id]
+                properties:
+                  Id:
+                    type: integer
         "401":
           description: Token isn't valid
-
+        "409":
+          description: User is in another game
   # /user/{Id}:
   #   get:
   #     responses:

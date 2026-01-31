@@ -15,14 +15,14 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 )
 
-func GetToken(Name string) TokenPair {
+func GetToken(Id ID) TokenPair {
 	AccessToken := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
-		"Name":         Name,
+		"ID":           Id,
 		"Type":         "Access",
 		"WillExpireAt": time.Now().Add(time.Minute * 15).Format(time.UnixDate),
 	})
 	RefreshToken := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
-		"Name":         Name,
+		"Name":         Id,
 		"Type":         "Refresh",
 		"WillExpireAt": time.Now().Add(time.Hour * 24 * 30).Format(time.UnixDate),
 	})
@@ -59,12 +59,13 @@ func SignUp(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	Salt := rand.Text()
-	_, err := srv.dbpool.Exec(context.Background(), "INSERT INTO players (Name, Pass, Role, Salt, Balance) VALUES ($1, $2, $3, $4, $5)", res.Name, fmt.Sprintf("%x", sha256.Sum256([]byte(res.Pass+Salt))), "User", Salt, srv.conf.Start_balance)
-	if err != nil {
-		fmt.Println(err)
+	b := srv.dbpool.QueryRow(context.Background(), "INSERT INTO players (Name, Pass, Role, Salt, Balance) VALUES ($1, $2, $3, $4, $5) RETURNING id", res.Name, fmt.Sprintf("%x", sha256.Sum256([]byte(res.Pass+Salt))), "User", Salt, srv.conf.Start_balance)
+	var Id ID
+	if err := b.Scan(&Id); err != nil {
+		panic(err)
 	}
 	enc := json.NewEncoder(w)
-	enc.Encode(GetToken(res.Name))
+	enc.Encode(GetToken(Id))
 }
 
 func SignIn(w http.ResponseWriter, r *http.Request) {
@@ -81,9 +82,10 @@ func SignIn(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
-	a := srv.dbpool.QueryRow(context.Background(), "SELECT Pass, Salt FROM players WHERE name = $1", res.Name)
+	a := srv.dbpool.QueryRow(context.Background(), "SELECT Id, Pass, Salt FROM players WHERE name = $1", res.Name)
+	var Id ID
 	var sum, salt string
-	err := a.Scan(&sum, &salt)
+	err := a.Scan(&Id, &sum, &salt)
 	if err != nil {
 		w.WriteHeader(http.StatusConflict)
 		return
@@ -93,77 +95,85 @@ func SignIn(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	enc := json.NewEncoder(w)
-	enc.Encode(GetToken(res.Name))
+	enc.Encode(GetToken(Id))
 }
 
-func CheckAuth(r *http.Request, ReqTp string) (string, error) {
+func CheckAuth(r *http.Request, ReqTp string) (ID, error) {
 	var tokenString string
-	var Name string
+	var Id ID
 	if res, ok := r.Header["Authorization"]; ok {
 		if _, err := fmt.Sscanf(res[0], "Bearer %s", &tokenString); err != nil {
-			return "", errors.New("UAU")
+			return 0, errors.New("UAU")
 		} else {
 			token, err := jwt.Parse(tokenString, func(token *jwt.Token) (any, error) {
 				return srv.secret, nil
 			}, jwt.WithValidMethods([]string{jwt.SigningMethodHS256.Alg()}))
 			if err != nil {
-				return "", errors.New("UAU")
+				return 0, errors.New("UAU")
 			}
 			if claims, ok := token.Claims.(jwt.MapClaims); ok {
-				Name = claims["Name"].(string)
+				Id, _ = strconv.Atoi(claims["Id"].(string))
 				WillExpireAtStr, _ := (claims["WillExpireAt"].(string))
 				WillExpireAt, _ := time.Parse(time.UnixDate, WillExpireAtStr)
 				tp := (claims["Type"].(string))
 				if time.Now().After(WillExpireAt) || tp != ReqTp {
-					return "", errors.New("UAU")
+					return 0, errors.New("UAU")
 				}
 			} else {
-				return "", errors.New("UAU")
+				return 0, errors.New("UAU")
 			}
 		}
 	} else {
-		return "", errors.New("UAU")
+		return 0, errors.New("UAU")
 	}
-	return Name, nil
+	return Id, nil
 }
 
 func Refresh(w http.ResponseWriter, r *http.Request) {
-	username, err := CheckAuth(r, "Refresh")
+	Id, err := CheckAuth(r, "Refresh")
 	if err != nil {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
 	}
 	enc := json.NewEncoder(w)
-	enc.Encode(GetToken(username))
+	enc.Encode(GetToken(Id))
 }
 
 func CreateGame(w http.ResponseWriter, r *http.Request) {
-	username, err := CheckAuth(r, "Access")
+	Id, err := CheckAuth(r, "Access")
 	if err != nil {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
 	}
-	if _, ok := WhereIsUser[username]; ok {
+	if _, ok := WhereIsUser[Id]; ok {
 		w.WriteHeader(http.StatusConflict)
 		return
 	}
 	srv.gamesPtr++
 	res := srv.gamesPtr
-	fmt.Fprint(w, res-1)
-	games[res-1] = NewGame(username)
-	WhereIsUser[username] = res - 1
+	WhereIsUser[Id] = res - 1
+	games[res-1] = NewGame(Id)
+	enc := json.NewEncoder(w)
+	type Response struct {
+		Id ID
+	}
+	enc.Encode(Response{
+		Id: res - 1,
+	})
+	// TODO
+	// JoinGame(w, r)
 }
 
 func GetUserMe(w http.ResponseWriter, r *http.Request) {
-	username, err := CheckAuth(r, "Access")
+	Id, err := CheckAuth(r, "Access")
 	if err != nil {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
 	}
-	a := srv.dbpool.QueryRow(context.Background(), "SELECT Id, Role, Balance FROM players WHERE name = $1", username)
-	var Id, Balance int
-	var Role string
-	if err := a.Scan(&Id, &Role, &Balance); err != nil {
+	a := srv.dbpool.QueryRow(context.Background(), "SELECT Name, Role, Balance FROM players WHERE Id = $1", Id)
+	var Balance int
+	var Username, Role string
+	if err := a.Scan(&Username, &Role, &Balance); err != nil {
 		panic(err)
 	}
 	type Data struct {
@@ -172,7 +182,7 @@ func GetUserMe(w http.ResponseWriter, r *http.Request) {
 	}
 	enc := json.NewEncoder(w)
 	dat := User{
-		Name:    username,
+		Name:    Username,
 		Balance: Balance,
 		Role:    Role,
 		Id:      Id,
@@ -183,12 +193,12 @@ func GetUserMe(w http.ResponseWriter, r *http.Request) {
 }
 
 func DeleteUserMe(w http.ResponseWriter, r *http.Request) {
-	username, err := CheckAuth(r, "Access")
+	Id, err := CheckAuth(r, "Access")
 	if err != nil {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
 	}
-	if _, err := srv.dbpool.Exec(context.Background(), "DELETE FROM players WHERE name = $1", username); err != nil {
+	if _, err := srv.dbpool.Exec(context.Background(), "DELETE FROM players WHERE Id = $1", Id); err != nil {
 		panic(err)
 	}
 }
@@ -202,6 +212,7 @@ func UserHeaderMe(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// TODO
 func JoinGame(w http.ResponseWriter, r *http.Request) {
 	username, err := CheckAuth(r, "Access")
 	if err != nil {
@@ -225,7 +236,7 @@ func JoinGame(w http.ResponseWriter, r *http.Request) {
 	if !ok || gm.IsStart {
 		w.WriteHeader(http.StatusBadRequest)
 	}
-	gm.UsersId = append(gm.UsersId, username)
+	gm.UserIDs = append(gm.UserIDs, username)
 	gm.Bet = append(gm.Bet, 0)
 	a := srv.dbpool.QueryRow(context.Background(), "SELECT Balance FROM players WHERE name = $1", username)
 	var bal int
@@ -233,7 +244,7 @@ func JoinGame(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusConflict)
 		return
 	}
-	gm.MaxBet = append(gm.MaxBet, bal)
+	gm.Stack = append(gm.Stack, bal)
 }
 
 func Ping(w http.ResponseWriter, r *http.Request) {
