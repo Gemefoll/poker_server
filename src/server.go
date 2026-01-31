@@ -98,6 +98,7 @@ func StartServer() error {
 	http.HandleFunc("/api/user/auth", SignIn)
 	http.HandleFunc("/api/game/create", CreateGame)
 	http.HandleFunc("/api/game/join", JoinGame)
+	http.HandleFunc("/api/refresh", Refresh)
 	fmt.Println(srv.conf.Port)
 	return http.ListenAndServe(":"+strconv.Itoa(srv.conf.Port), nil)
 }
