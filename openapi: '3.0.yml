@@ -1,0 +1,68 @@
+openapi: '3.0.3'
+info:
+  title: Poker server
+  version: '1.0'
+servers:
+  - url: https://api.server.test/v1
+paths:
+  /user/create:
+    post:
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [User, Pass]
+              properties:
+                User:
+                  type: string
+                Pass:
+                  type: string
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PairToken'
+        '409':
+          description: The name is already exist
+        '422':
+          description: The name or the pass is too long or the pass is too small
+  /user/auth:
+    post:
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [User, Pass]
+              properties:
+                User:
+                  type: string
+                Pass:
+                  type: string
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PairToken'
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  schemas:
+    PairToken:
+      type: object
+      required: [AccessToken, RefreshToken]
+      properties:
+        AccessToken:
+          type: string
+        RefreshToken:
+          type: string
