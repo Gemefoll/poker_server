@@ -48,6 +48,7 @@ type Game struct {
 	Pots    [][]ID
 	Bet     []int
 	Stack   []int
+	Delta   []int
 	Deck    []Card
 	Hand    map[ID][]Card
 	Iter    int

@@ -90,11 +90,28 @@ paths:
     #       description: OK
     #     "401":
     #       description: Token isn't valid
-  /game/create:
+  /game/join:
     post:
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [Id, Stack]
+              properties:
+                Id:
+                  type: integer
+                  description: Set -1, if you want to create a new game
+                Stack:
+                  type: integer
       responses:
+        "200":
+          description: joining success
         "201":
-          description: OK
+          description: Game created
           content:
             application/json:
               schema:
@@ -107,6 +124,8 @@ paths:
           description: Token isn't valid
         "409":
           description: User is in another game
+        "400":
+          description: The game doesn't exist
   # /user/{Id}:
   #   get:
   #     responses:

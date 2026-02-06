@@ -214,37 +214,45 @@ func UserHeaderMe(w http.ResponseWriter, r *http.Request) {
 
 // TODO
 func JoinGame(w http.ResponseWriter, r *http.Request) {
-	username, err := CheckAuth(r, "Access")
+	Id, err := CheckAuth(r, "Access")
 	if err != nil {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
 	}
-	if _, ok := WhereIsUser[username]; ok {
+	if _, ok := WhereIsUser[Id]; ok {
 		w.WriteHeader(http.StatusConflict)
 		return
 	}
-	if v, ok := r.URL.Query()["id"]; !ok || len(v) == 0 {
+	type Req struct {
+		Id    ID
+		Stack int
+	}
+	var res Req
+	dec := json.NewDecoder(r.Body)
+	if err := dec.Decode(&res); err != nil {
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
-	id := r.URL.Query()["id"][0]
-	ind, err := strconv.Atoi(id)
-	if err != nil {
-		w.WriteHeader(http.StatusBadRequest)
+	if res.Id == -1 {
+
+	} else {
+
 	}
-	gm, ok := games[ind]
+ 	gm, ok := games[res.Id]
 	if !ok || gm.IsStart {
 		w.WriteHeader(http.StatusBadRequest)
+		return
 	}
-	gm.UserIDs = append(gm.UserIDs, username)
+	gm.UserIDs = append(gm.UserIDs, Id)
 	gm.Bet = append(gm.Bet, 0)
-	a := srv.dbpool.QueryRow(context.Background(), "SELECT Balance FROM players WHERE name = $1", username)
+	gm.Delta = append(gm.Delta, 0)
+	a := srv.dbpool.QueryRow(context.Background(), "SELECT Balance FROM players WHERE Id = $1", Id)
 	var bal int
-	if err := a.Scan(&bal); err != nil {
+	if err := a.Scan(&bal); err != nil || bal < res.Stack {
 		w.WriteHeader(http.StatusConflict)
 		return
 	}
-	gm.Stack = append(gm.Stack, bal)
+	gm.Stack = append(gm.Stack, res.Stack)
 }
 
 func Ping(w http.ResponseWriter, r *http.Request) {
