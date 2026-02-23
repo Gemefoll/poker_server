@@ -1,6 +1,7 @@
 package main
 
 import (
+	"github.com/golang-jwt/jwt/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -39,6 +40,12 @@ type Card struct {
 type TokenPair struct {
 	AccessToken  string
 	RefreshToken string
+}
+
+type TokenClaims struct {
+	ID   int
+	Type string
+	jwt.RegisteredClaims
 }
 
 type Game struct {

@@ -8,6 +8,7 @@ import (
 	"os"
 	"strconv"
 
+	"github.com/gofiber/fiber/v3"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -92,13 +93,22 @@ func setupServer() {
 }
 
 func StartServer() error {
-	http.HandleFunc("/api/ping", Ping)
-	http.HandleFunc("/api/user/me", UserHeaderMe)
-	http.HandleFunc("/api/user/create", SignUp)
-	http.HandleFunc("/api/user/auth", SignIn)
-	http.HandleFunc("/api/game/create", CreateGame)
-	http.HandleFunc("/api/game/join", JoinGame)
-	http.HandleFunc("/api/refresh", Refresh)
-	fmt.Println(srv.conf.Port)
-	return http.ListenAndServe(":"+strconv.Itoa(srv.conf.Port), nil)
+	app := fiber.New()
+	app.Get("/api/ping", Ping)
+	app.Get("/api/user/me", http.HandlerFunc(UserHeaderMe))
+	app.Get("/api/user/create", http.HandlerFunc(SignUp))
+	app.Get("/api/user/auth", http.HandlerFunc(SignIn))
+	app.Get("/api/game/create", http.HandlerFunc(CreateGame))
+	app.Get("/api/game/join", http.HandlerFunc(JoinGame))
+	app.Get("/api/refresh", http.HandlerFunc(Refresh))
+	// http.HandleFunc("/api/ping", Ping)
+	// http.HandleFunc("/api/user/me", UserHeaderMe)
+	// http.HandleFunc("/api/user/create", SignUp)
+	// http.HandleFunc("/api/user/auth", SignIn)
+	// http.HandleFunc("/api/game/create", CreateGame)
+	// http.HandleFunc("/api/game/join", JoinGame)
+	// http.HandleFunc("/api/refresh", Refresh)
+	// fmt.Println(srv.conf.Port)
+	return app.Listen(":" + strconv.Itoa(srv.conf.Port))
+	// return http.ListenAndServe(":"+strconv.Itoa(srv.conf.Port), nil)
 }

@@ -8,23 +8,26 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"strconv"
 	"time"
 
-	// "github.com/georgysavva/scany/v2/pgxscan"
+	"github.com/gofiber/fiber/v3"
 	"github.com/golang-jwt/jwt/v5"
 )
 
 func GetToken(Id ID) TokenPair {
-	AccessToken := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
-		"ID":           Id,
-		"Type":         "Access",
-		"WillExpireAt": time.Now().Add(time.Minute * 15).Format(time.UnixDate),
+	AccessToken := jwt.NewWithClaims(jwt.SigningMethodHS256, TokenClaims{
+		Id,
+		"Access",
+		jwt.RegisteredClaims{
+			ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Minute * 15)),
+		},
 	})
-	RefreshToken := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
-		"Name":         Id,
-		"Type":         "Refresh",
-		"WillExpireAt": time.Now().Add(time.Hour * 24 * 30).Format(time.UnixDate),
+	RefreshToken := jwt.NewWithClaims(jwt.SigningMethodHS256, TokenClaims{
+		Id,
+		"Refresh",
+		jwt.RegisteredClaims{
+			ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Hour * 24 * 30)),
+		},
 	})
 	StrAccessToken, _ := AccessToken.SignedString(srv.secret)
 	StrRefreshToken, _ := RefreshToken.SignedString(srv.secret)
@@ -100,25 +103,17 @@ func SignIn(w http.ResponseWriter, r *http.Request) {
 
 func CheckAuth(r *http.Request, ReqTp string) (ID, error) {
 	var tokenString string
-	var Id ID
 	if res, ok := r.Header["Authorization"]; ok {
 		if _, err := fmt.Sscanf(res[0], "Bearer %s", &tokenString); err != nil {
 			return 0, errors.New("UAU")
 		} else {
-			token, err := jwt.Parse(tokenString, func(token *jwt.Token) (any, error) {
+			token, err := jwt.ParseWithClaims(tokenString, &TokenClaims{}, func(token *jwt.Token) (any, error) {
 				return srv.secret, nil
-			}, jwt.WithValidMethods([]string{jwt.SigningMethodHS256.Alg()}))
+			}, jwt.WithLeeway(5*time.Second))
 			if err != nil {
 				return 0, errors.New("UAU")
-			}
-			if claims, ok := token.Claims.(jwt.MapClaims); ok {
-				Id, _ = strconv.Atoi(claims["Id"].(string))
-				WillExpireAtStr, _ := (claims["WillExpireAt"].(string))
-				WillExpireAt, _ := time.Parse(time.UnixDate, WillExpireAtStr)
-				tp := (claims["Type"].(string))
-				if time.Now().After(WillExpireAt) || tp != ReqTp {
-					return 0, errors.New("UAU")
-				}
+			} else if claims, ok := token.Claims.(*TokenClaims); ok && claims.Type == ReqTp {
+				return claims.ID, nil
 			} else {
 				return 0, errors.New("UAU")
 			}
@@ -126,7 +121,6 @@ func CheckAuth(r *http.Request, ReqTp string) (ID, error) {
 	} else {
 		return 0, errors.New("UAU")
 	}
-	return Id, nil
 }
 
 func Refresh(w http.ResponseWriter, r *http.Request) {
@@ -233,16 +227,22 @@ func JoinGame(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
+	var gid ID
 	if res.Id == -1 {
-
+		srv.gamesPtr++
+		res := srv.gamesPtr
+		WhereIsUser[Id] = res - 1
+		games[res-1] = NewGame(Id)
+		gid = res - 1
 	} else {
-
+		gm, ok := games[res.Id]
+		if !ok || gm.IsStart {
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+		gid = res.Id
 	}
- 	gm, ok := games[res.Id]
-	if !ok || gm.IsStart {
-		w.WriteHeader(http.StatusBadRequest)
-		return
-	}
+	gm := games[gid]
 	gm.UserIDs = append(gm.UserIDs, Id)
 	gm.Bet = append(gm.Bet, 0)
 	gm.Delta = append(gm.Delta, 0)
@@ -253,8 +253,13 @@ func JoinGame(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	gm.Stack = append(gm.Stack, res.Stack)
+	enc := json.NewEncoder(w)
+	type Resp struct {
+		Id ID
+	}
+	enc.Encode(Resp{gid})
 }
 
-func Ping(w http.ResponseWriter, r *http.Request) {
-	fmt.Fprint(w, "ok")
+func Ping(c fiber.Ctx) {
+	c.SendString("ok")
 }
