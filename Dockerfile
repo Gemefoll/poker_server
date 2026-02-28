@@ -1,14 +1,14 @@
-FROM golang AS builder
+FROM golang:latest AS builder
 
-COPY ./src/* /app/
 COPY go.mod /app/
 COPY go.sum /app/
-
 WORKDIR /app
 RUN go mod download
+
+COPY ./src/* /app/
 RUN go build -o /app/poker_server .
 
-FROM busybox
+FROM busybox:latest
 
 COPY --from=builder /app/poker_server .
 CMD ["./poker_server"]

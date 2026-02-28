@@ -37,29 +37,25 @@ func GetToken(Id ID) TokenPair {
 	}
 }
 
-func SignUp(w http.ResponseWriter, r *http.Request) {
+func SignUp(c fiber.Ctx) error {
 	type Data struct {
 		Name string
 		Pass string
 	}
-	var res Data
-	if err := json.NewDecoder(r.Body).Decode(&res); err != nil {
-		w.WriteHeader(http.StatusBadRequest)
-		return
+	res := new(Data)
+	if err := c.Bind().JSON(res); err != nil {
+		return fiber.ErrBadRequest
 	}
 	if len(res.Name) > 20 || len(res.Pass) > 20 {
-		w.WriteHeader(http.StatusBadRequest)
-		return
+		return fiber.ErrBadRequest
 	}
 	if len(res.Pass) < 6 || len(res.Name) == 0 {
-		w.WriteHeader(http.StatusBadRequest)
-		return
+		return fiber.ErrBadRequest
 	}
 	a := srv.dbpool.QueryRow(context.Background(), "SELECT Name FROM players WHERE Name = $1", res.Name)
 	var username string
 	if err := a.Scan(&username); err == nil {
-		w.WriteHeader(http.StatusConflict)
-		return
+		return fiber.ErrConflict
 	}
 	Salt := rand.Text()
 	b := srv.dbpool.QueryRow(context.Background(), "INSERT INTO players (Name, Pass, Role, Salt, Balance) VALUES ($1, $2, $3, $4, $5) RETURNING id", res.Name, fmt.Sprintf("%x", sha256.Sum256([]byte(res.Pass+Salt))), "User", Salt, srv.conf.Start_balance)
@@ -67,8 +63,7 @@ func SignUp(w http.ResponseWriter, r *http.Request) {
 	if err := b.Scan(&Id); err != nil {
 		panic(err)
 	}
-	enc := json.NewEncoder(w)
-	enc.Encode(GetToken(Id))
+	return c.JSON(GetToken(Id))
 }
 
 func SignIn(w http.ResponseWriter, r *http.Request) {
@@ -123,14 +118,8 @@ func CheckAuth(r *http.Request, ReqTp string) (ID, error) {
 	}
 }
 
-func Refresh(w http.ResponseWriter, r *http.Request) {
-	Id, err := CheckAuth(r, "Refresh")
-	if err != nil {
-		w.WriteHeader(http.StatusUnauthorized)
-		return
-	}
-	enc := json.NewEncoder(w)
-	enc.Encode(GetToken(Id))
+func Refresh(c fiber.Ctx) error {
+	return c.JSON(GetToken(fiber.Locals[ID](c, "Id")))
 }
 
 func CreateGame(w http.ResponseWriter, r *http.Request) {
@@ -158,12 +147,8 @@ func CreateGame(w http.ResponseWriter, r *http.Request) {
 	// JoinGame(w, r)
 }
 
-func GetUserMe(w http.ResponseWriter, r *http.Request) {
-	Id, err := CheckAuth(r, "Access")
-	if err != nil {
-		w.WriteHeader(http.StatusUnauthorized)
-		return
-	}
+func GetUserMe(c fiber.Ctx) error {
+	Id := fiber.Locals[ID](c, "Id")
 	a := srv.dbpool.QueryRow(context.Background(), "SELECT Name, Role, Balance FROM players WHERE Id = $1", Id)
 	var Balance int
 	var Username, Role string
@@ -174,16 +159,12 @@ func GetUserMe(w http.ResponseWriter, r *http.Request) {
 		Username string
 		Balance  int
 	}
-	enc := json.NewEncoder(w)
-	dat := User{
+	return c.JSON(User{
 		Name:    Username,
 		Balance: Balance,
 		Role:    Role,
 		Id:      Id,
-	}
-	if err := enc.Encode(dat); err != nil {
-		panic(err)
-	}
+	})
 }
 
 func DeleteUserMe(w http.ResponseWriter, r *http.Request) {
@@ -194,15 +175,6 @@ func DeleteUserMe(w http.ResponseWriter, r *http.Request) {
 	}
 	if _, err := srv.dbpool.Exec(context.Background(), "DELETE FROM players WHERE Id = $1", Id); err != nil {
 		panic(err)
-	}
-}
-
-func UserHeaderMe(w http.ResponseWriter, r *http.Request) {
-	switch r.Method {
-	case http.MethodGet:
-		GetUserMe(w, r)
-	case http.MethodDelete:
-		DeleteUserMe(w, r)
 	}
 }
 
@@ -260,6 +232,6 @@ func JoinGame(w http.ResponseWriter, r *http.Request) {
 	enc.Encode(Resp{gid})
 }
 
-func Ping(c fiber.Ctx) {
-	c.SendString("ok")
+func Ping(c fiber.Ctx) error {
+	return c.SendString("ok")
 }

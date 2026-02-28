@@ -8,7 +8,10 @@ import (
 	"os"
 	"strconv"
 
+	jwtware "github.com/gofiber/contrib/v3/jwt"
 	"github.com/gofiber/fiber/v3"
+	"github.com/gofiber/fiber/v3/extractors"
+	"github.com/golang-jwt/jwt/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -92,23 +95,34 @@ func setupServer() {
 	games = make(map[int]*Game)
 }
 
+func TokenParser(Req string) func(c fiber.Ctx) error {
+	return func(c fiber.Ctx) error {
+		token := jwtware.FromContext(c)
+		claims := token.Claims.(jwt.MapClaims)
+		if claims["Type"].(string) != Req {
+			return fiber.ErrUnauthorized
+		}
+		fiber.Locals(c, "Id", int(claims["ID"].(float64)))
+		return c.Next()
+	}
+}
+
 func StartServer() error {
 	app := fiber.New()
 	app.Get("/api/ping", Ping)
-	app.Get("/api/user/me", http.HandlerFunc(UserHeaderMe))
-	app.Get("/api/user/create", http.HandlerFunc(SignUp))
 	app.Get("/api/user/auth", http.HandlerFunc(SignIn))
+	app.Post("/api/user/create", SignUp)
+
+	app.Use(jwtware.New(jwtware.Config{
+		SigningKey: jwtware.SigningKey{Key: srv.secret},
+		Extractor:  extractors.FromAuthHeader("Bearer"),
+	}))
+	app.Get("/api/refresh", TokenParser("Refresh"), Refresh)
+
+	app.Use(TokenParser("Access"))
 	app.Get("/api/game/create", http.HandlerFunc(CreateGame))
 	app.Get("/api/game/join", http.HandlerFunc(JoinGame))
-	app.Get("/api/refresh", http.HandlerFunc(Refresh))
-	// http.HandleFunc("/api/ping", Ping)
-	// http.HandleFunc("/api/user/me", UserHeaderMe)
-	// http.HandleFunc("/api/user/create", SignUp)
-	// http.HandleFunc("/api/user/auth", SignIn)
-	// http.HandleFunc("/api/game/create", CreateGame)
-	// http.HandleFunc("/api/game/join", JoinGame)
-	// http.HandleFunc("/api/refresh", Refresh)
-	// fmt.Println(srv.conf.Port)
+	app.Get("/api/user/me", GetUserMe)
+
 	return app.Listen(":" + strconv.Itoa(srv.conf.Port))
-	// return http.ListenAndServe(":"+strconv.Itoa(srv.conf.Port), nil)
 }
