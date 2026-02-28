@@ -66,34 +66,29 @@ func SignUp(c fiber.Ctx) error {
 	return c.JSON(GetToken(Id))
 }
 
-func SignIn(w http.ResponseWriter, r *http.Request) {
+func SignIn(c fiber.Ctx) error {
 	type Data struct {
 		Name string
 		Pass string
 	}
-	var res Data
-	if err := json.NewDecoder(r.Body).Decode(&res); err != nil {
-		w.WriteHeader(http.StatusBadRequest)
-		return
+	res := new(Data)
+	if err := c.Bind().JSON(res); err != nil {
+		return fiber.ErrBadRequest
 	}
 	if len(res.Name) > 20 {
-		w.WriteHeader(http.StatusBadRequest)
-		return
+		return fiber.ErrBadRequest
 	}
 	a := srv.dbpool.QueryRow(context.Background(), "SELECT Id, Pass, Salt FROM players WHERE name = $1", res.Name)
 	var Id ID
 	var sum, salt string
 	err := a.Scan(&Id, &sum, &salt)
 	if err != nil {
-		w.WriteHeader(http.StatusConflict)
-		return
+		return fiber.ErrConflict
 	}
 	if sum != fmt.Sprintf("%x", sha256.Sum256([]byte(res.Pass+salt))) {
-		w.WriteHeader(http.StatusForbidden)
-		return
+		return fiber.ErrForbidden
 	}
-	enc := json.NewEncoder(w)
-	enc.Encode(GetToken(Id))
+	return c.JSON(GetToken(Id))
 }
 
 func CheckAuth(r *http.Request, ReqTp string) (ID, error) {
@@ -167,12 +162,8 @@ func GetUserMe(c fiber.Ctx) error {
 	})
 }
 
-func DeleteUserMe(w http.ResponseWriter, r *http.Request) {
-	Id, err := CheckAuth(r, "Access")
-	if err != nil {
-		w.WriteHeader(http.StatusUnauthorized)
-		return
-	}
+func DeleteUserMe(c fiber.Ctx) {
+	Id := fiber.Locals[ID](c, "Id")
 	if _, err := srv.dbpool.Exec(context.Background(), "DELETE FROM players WHERE Id = $1", Id); err != nil {
 		panic(err)
 	}

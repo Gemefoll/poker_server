@@ -110,7 +110,7 @@ func TokenParser(Req string) func(c fiber.Ctx) error {
 func StartServer() error {
 	app := fiber.New()
 	app.Get("/api/ping", Ping)
-	app.Get("/api/user/auth", http.HandlerFunc(SignIn))
+	app.Post("/api/user/auth", SignIn)
 	app.Post("/api/user/create", SignUp)
 
 	app.Use(jwtware.New(jwtware.Config{
@@ -123,6 +123,7 @@ func StartServer() error {
 	app.Get("/api/game/create", http.HandlerFunc(CreateGame))
 	app.Get("/api/game/join", http.HandlerFunc(JoinGame))
 	app.Get("/api/user/me", GetUserMe)
+	// app.Delete("/api/user/me", DeleteUserMe)
 
 	return app.Listen(":" + strconv.Itoa(srv.conf.Port))
 }
